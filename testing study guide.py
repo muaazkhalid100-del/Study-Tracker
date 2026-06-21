@@ -132,6 +132,7 @@ class StudyTracker:
     def view_summary(self):
         print('\n📊 Today\'s Study Summary 📊')
         print(f"[----- You studied for a total of {self.total_study_time} minutes today. -----]")
+        print(self.study_log)
         if self.total_study_time >= 100:
             print("Great consistency! Keep it up.")
             self.motivational_quote()
@@ -204,7 +205,6 @@ def main():
             tracker.add_study_session()
         elif choice == "2":
             tracker.view_summary()
-            tracker.view_study_log()
         elif choice == "3":
             tracker.check_daily_goal()
         elif choice == "4":
