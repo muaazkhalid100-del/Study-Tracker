@@ -1,6 +1,9 @@
 import time
 import random
 from datetime import datetime
+import tkinter as tk
+from tkinter import messagebox
+from tkinter import *
 import threading
 import subprocess
 
@@ -13,13 +16,13 @@ def play_sound(sound="Glass"):
     subprocess.Popen(["afplay", f"/System/Library/Sounds/{sound}.aiff"])
 
 
-def reminder(message, delay):   #This will remind to take a break after first 55 minutes of opening the app.
+def reminder(message, delay):
     def task():
-        time.sleep(delay)
-        print(f"\nReminder: {message}")
-        play_sound("Ping")
+        while True:
+            time.sleep(delay)
+            print(f"\nReminder: {message}")
+            play_sound("Blow")
     threading.Thread(target=task, daemon=True).start()
-    reminder("Reminder: take a break...", 3300)
 
 
 class StudyTracker:
@@ -28,6 +31,7 @@ class StudyTracker:
         self.study_log = []
         self.total_study_time = int(0)
         self.daily_goals = []
+ 
 
     def motivational_quote(self):
         quotes = [
@@ -47,9 +51,10 @@ class StudyTracker:
         play_sound("Tink")  # timer started
 
         while seconds >= 0:
-            mins = seconds // 60
+            mins = (seconds // 60)% 60
             secs = seconds % 60
-            print(f"|||- ⏳  Time remaining: {mins:02}:{secs:02}  ⏳ -|||", end="\r", flush=True)
+            hours = int(seconds / 3600)
+            print(f"|||- ⏳  Time remaining: {hours:02}:{mins:02}:{secs:02}  ⏳ -|||", end="\r", flush=True)
             time.sleep(1)
             seconds -= 1
 
@@ -187,7 +192,6 @@ class StudyTracker:
 
 def main():
     tracker = StudyTracker()
-
     while True:
         print("\n📚 🧑‍🎓 Daily Study Tracker 📚💻")
         print(f"Logged in today: {tracker.today.strftime('%Y-%m-%d')}")
@@ -198,7 +202,7 @@ def main():
         print("5. Study Tips")
         print("6. view study log")
         print("7. exit")
-
+        reminder("Take a break 1hr into studying",3600) #reminder for a break after an hour completes.
         choice = input("\nSelect an option (1-7): ").strip()
 
         if choice == "1":
@@ -223,4 +227,9 @@ def main():
 
 
 if __name__ == "__main__":
+    root = tk.Tk()
+    root.withdraw()
+    messagebox.showinfo("Welcome","Welcome to Daily Study Tracker"
+                           "Glad You're back.")
+    root.destroy()
     main()
