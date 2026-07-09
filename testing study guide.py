@@ -22,6 +22,7 @@ def reminder(message, delay):
             time.sleep(delay)
             print(f"\nReminder: {message}")
             play_sound("Blow")
+            subprocess.Popen(["say", "Take a break if you need 1 hour already"])
     threading.Thread(target=task, daemon=True).start()
 
 
@@ -85,7 +86,12 @@ class StudyTracker:
             self.start_timer(time_spent)
 
             play_sound("Tink")
-            time_extra = int(input("How much extra time did you take? (0 if none): "))
+            try:
+                play_sound("Tink")
+                time_extra = int(input("How much extra time did you take? (0 if none):"))
+            except ValueError:
+                print("Sir I asked for the time you entered a wrong thing")
+                time_extra = input("re-enter:")
 
             total_time = time_spent + time_extra
             self.total_study_time += total_time
