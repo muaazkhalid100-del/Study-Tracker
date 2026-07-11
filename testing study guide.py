@@ -18,11 +18,13 @@ def play_sound(sound="Glass"):
 
 def reminder(message, delay):
     def task():
-        while True:
-            time.sleep(delay)
-            print(f"\nReminder: {message}")
-            play_sound("Blow")
-            subprocess.Popen(["say", "Take a break if you need 1 hour already"])
+        seconds = delay
+        while seconds >= 0:
+            time.sleep(1)
+            seconds -= 1
+        print(f"\nReminder: {message}")
+        play_sound("Blow")
+        subprocess.Popen(["say", "Take a break if you need 1 hour already"])
     threading.Thread(target=task, daemon=True).start()
 
 
