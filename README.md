@@ -1,4 +1,4 @@
-# Study-Tracker v1.2
+# Study-Tracker v1.3-[graph feature added]
 Python-based study tracking application featuring session timers, topic logging, daily goal tracking, motivational quotes, and progress monitoring to help students build consistent study habits.
 Built with a focus on clarity, modularity, and motivation, the app transforms daily learning into a structured, goal‑oriented experience.
 💡 Key Features
