@@ -1,13 +1,12 @@
-import time
 import random
+import time
 from datetime import datetime
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import *
 import threading
 import subprocess
-
-
+import matplotlib.pyplot as plt
 LOG_FILE = "study_log1.txt"
 
 
@@ -25,6 +24,7 @@ def reminder(message, delay):
         print(f"\nReminder: {message}")
         play_sound("Blow")
         subprocess.Popen(["say", "Take a break if you need 1 hour already"])
+
     threading.Thread(target=task, daemon=True).start()
 
 
@@ -34,7 +34,6 @@ class StudyTracker:
         self.study_log = []
         self.total_study_time = int(0)
         self.daily_goals = []
- 
 
     def motivational_quote(self):
         quotes = [
@@ -54,7 +53,7 @@ class StudyTracker:
         play_sound("Tink")  # timer started
 
         while seconds >= 0:
-            mins = (seconds // 60)% 60
+            mins = (seconds // 60) % 60
             secs = seconds % 60
             hours = int(seconds / 3600)
             print(f"|||- ⏳  Time remaining: {hours:02}:{mins:02}:{secs:02}  ⏳ -|||", end="\r", flush=True)
@@ -69,6 +68,8 @@ class StudyTracker:
         with open(LOG_FILE, "a") as file:
             for session in self.study_log:
                 file.write(f"{self.today.strftime('%Y-%m-%d')} | {session['topic']} | {session['time']}\n")
+        with open("new data .txt","a") as file:
+            file.write(f"{self.today.strftime('%Y-%m-%d')} | {self.total_study_time}\n")
 
     def add_study_session(self):
         while True:
@@ -86,8 +87,6 @@ class StudyTracker:
             time_spent = int(input(f"Enter study time in minutes for {topic_name}: "))
 
             self.start_timer(time_spent)
-
-            play_sound("Tink")
             try:
                 play_sound("Tink")
                 time_extra = int(input("How much extra time did you take? (0 if none):"))
@@ -98,6 +97,8 @@ class StudyTracker:
             total_time = time_spent + time_extra
             self.total_study_time += total_time
             self.study_log.append({"topic": topic_name, "time": total_time})
+
+
             print(f"✅ Logged: {topic_name} — {total_time} minutes")
             play_sound("Glass")  # session logged
 
@@ -125,10 +126,11 @@ class StudyTracker:
 
             self.total_study_time += time_spent
             self.study_log.append({"topic": topic_name, "time": time_spent})
+            self.save_to_file()
             print(f"✅ Logged: {topic_name} — {time_spent} minutes")
             play_sound("Glass")
 
-        self.save_to_file()
+
         print(f"\n📊 Total study time recorded so far: {self.total_study_time} minutes")
 
     def view_study_log(self):
@@ -143,15 +145,67 @@ class StudyTracker:
             print("❌ No study log found yet.")
 
     def view_summary(self):
+        from datetime import date
+
+        today = date.today().isoformat()  # e.g. '2026-06-12'
+        total_minutes = 0
+        todays_entries = []
+
+        try:
+            with open('new data .txt', 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or '|' not in line:
+                        continue
+                    entry_date, minutes = [p.strip() for p in line.split('|')]
+                    if entry_date == today:
+                        total_minutes += int(minutes)
+                        todays_entries.append(f"{entry_date} | {minutes} min")
+        except FileNotFoundError:
+            print("No study data file found yet.")
+            return
+
         print('\n📊 Today\'s Study Summary 📊')
-        print(f"[----- You studied for a total of {self.total_study_time} minutes today. -----]")
-        print(self.study_log)
-        if self.total_study_time >= 100:
+        print(f"[----- You studied for a total of {total_minutes} minutes today. -----]")
+        for entry in todays_entries:
+            print(entry)
+
+        if total_minutes >= 100:
             print("Great consistency! Keep it up.")
+            subprocess.Popen(["say","Keep up the great work"])
             self.motivational_quote()
         else:
             print("You're doing well—keep pushing yourself a little more!")
-
+    def Study_graph(self):
+        dates = []
+        minutes = []
+        try:
+            with open("new data .txt", "r") as file:
+                for line in file:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = line.split(" | ")
+                    if len(parts) != 2:
+                        continue  # skip corrupted/malformed lines
+                    try:
+                        mins = int(parts[1]) / 60
+                    except ValueError:
+                        continue  # skip lines where minutes isn't a clean number
+                    dates.append(parts[0])
+                    minutes.append(mins)
+            if dates:  # only plot if we actually have valid data
+                plt.plot(dates, minutes, marker=".")
+                plt.xlabel("Date")
+                plt.ylabel("Minutes studied")
+                plt.title("Study Time Over Days")
+                plt.xticks(rotation=45)
+                plt.tight_layout()
+                plt.show()
+            else:
+                print("No valid study data to plot yet.")
+        except FileNotFoundError:
+            print("No study data file found yet.")
     def check_daily_goal(self):
         try:
             goal = int(input("\nEnter your daily study goal in minutes: "))
@@ -171,6 +225,7 @@ class StudyTracker:
                     parts = line.split(" | ")
                     if parts[0] == today:
                         minutes = int(parts[2])
+
                         total_from_file += minutes
         except FileNotFoundError:
             print("❌ No study log found. Start a session first!")
@@ -186,6 +241,7 @@ class StudyTracker:
             remaining = goal - total_from_file
             print(f"⚠️ Keep going — only {remaining} more minutes to reach your goal!")
             self.daily_goals.append(False)
+
     def random_study_tip(self):
         study_tips = [
             "Break big tasks into smaller chunks.",
@@ -208,9 +264,9 @@ def main():
         print("3. Check Daily Goal")
         print("4. Manually Add Study Session")
         print("5. Study Tips")
-        print("6. view study log")
+        print("6. view study log & Graph")
         print("7. exit")
-        reminder("Take a break 1hr into studying",3600) #reminder for a break after an hour completes.
+        reminder("Take a break if you need 1hr into studying", 3600)  # reminder for a break after an hour completes.
         choice = input("\nSelect an option (1-7): ").strip()
 
         if choice == "1":
@@ -225,7 +281,9 @@ def main():
             tracker.random_study_tip()
         elif choice == "6":
             tracker.view_study_log()
+            tracker.Study_graph()
         elif choice == "7":
+            subprocess.Popen(["say", "That's it for today Sir ,   see you soon"])
             print("This is it for now, see you next time!")
             print(f"Your study time today: {tracker.total_study_time} minutes")
             play_sound("Sosumi")
@@ -235,9 +293,10 @@ def main():
 
 
 if __name__ == "__main__":
+    subprocess.Popen(["say", "Welcome to study-tracker app ,I am alex  your assistant voice. Please press ok to proceed."])
     root = tk.Tk()
     root.withdraw()
-    messagebox.showinfo("Welcome","Welcome to Daily Study Tracker"
-                           "Glad You're back.")
+    messagebox.showinfo("Welcome", "Welcome to Daily Study Tracker"
+                                   "Glad You're back.")
     root.destroy()
     main()
