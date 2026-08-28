@@ -7,6 +7,7 @@ from tkinter import *
 import threading
 import subprocess
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 LOG_FILE = "study_log1.txt"
 
 
@@ -15,7 +16,7 @@ def play_sound(sound="Glass"):
     subprocess.Popen(["afplay", f"/System/Library/Sounds/{sound}.aiff"])
 
 
-def reminder(message, delay):
+def reminder(message, delay):       #reminder to take a break after 1 hour.
     def task():
         seconds = delay
         while seconds >= 0:
@@ -25,7 +26,7 @@ def reminder(message, delay):
         play_sound("Blow")
         subprocess.Popen(["say", "Take a break if you need 1 hour already"])
 
-    threading.Thread(target=task, daemon=True).start()
+    threading.Thread(target=task, daemon=True).start()  #remin
 
 
 class StudyTracker:
@@ -50,6 +51,7 @@ class StudyTracker:
     def start_timer(self, minutes):
         seconds = minutes * 60
         print(f"\n< Timer set for {minutes} minutes. Starting now... >")
+        subprocess.Popen(["Say","Good Luck timer is set for",{minutes},"minutes"])
         play_sound("Tink")  # timer started
 
         while seconds >= 0:
@@ -69,7 +71,7 @@ class StudyTracker:
             for session in self.study_log:
                 file.write(f"{self.today.strftime('%Y-%m-%d')} | {session['topic']} | {session['time']}\n")
         with open("new data .txt","a") as file:
-            file.write(f"{self.today.strftime('%Y-%m-%d')} | {self.total_study_time}\n")
+            file.write(f"{self.today.strftime('%y-%m-%d')} | {self.total_study_time}\n")
 
     def add_study_session(self):
         while True:
@@ -128,6 +130,7 @@ class StudyTracker:
             self.study_log.append({"topic": topic_name, "time": time_spent})
             self.save_to_file()
             print(f"✅ Logged: {topic_name} — {time_spent} minutes")
+            subprocess.Popen(["say","Successfully logged"])
             play_sound("Glass")
 
 
@@ -143,6 +146,7 @@ class StudyTracker:
                         print(line)
         except FileNotFoundError:
             print("❌ No study log found yet.")
+        return
 
     def view_summary(self):
         from datetime import date
@@ -176,36 +180,58 @@ class StudyTracker:
             self.motivational_quote()
         else:
             print("You're doing well—keep pushing yourself a little more!")
+
+    from datetime import datetime
+    import matplotlib.pyplot as plt
+
+    import matplotlib.pyplot as plt
+    from datetime import datetime
+
     def Study_graph(self):
-        dates = []
-        minutes = []
+        monthly_totals = {}  # {"June": 12.5, "July": 8.0, ...} — values in hours
         try:
-            with open("new data .txt", "r") as file:
+            with open("new data .txt", "r") as file:  # removed extra space in filename
                 for line in file:
                     line = line.strip()
                     if not line:
                         continue
+
                     parts = line.split(" | ")
-                    if len(parts) != 2:
-                        continue  # skip corrupted/malformed lines
+                    if len(parts) != 2:  # check first before parsing
+                        continue
+
                     try:
-                        mins = int(parts[1]) / 60
+                        hours = int(parts[1]) / 60  # minutes -> hours
+                        date_obj = datetime.strptime(parts[0], "%Y-%m-%d")
+                        month_name = date_obj.strftime("%B")
+
+                        monthly_totals[month_name] = monthly_totals.get(month_name, 0) + hours
                     except ValueError:
-                        continue  # skip lines where minutes isn't a clean number
-                    dates.append(parts[0])
-                    minutes.append(mins)
-            if dates:  # only plot if we actually have valid data
-                plt.plot(dates, minutes, marker=".")
-                plt.xlabel("Date")
-                plt.ylabel("Minutes studied")
-                plt.title("Study Time Over Days")
+                        continue
+
+            if monthly_totals:
+                count = len(monthly_totals.keys())
+                average = sum(monthly_totals.values()) / count
+                print("Average study hours per month:", average)
+                print("Monthly totals:", monthly_totals)
+
+                months = list(monthly_totals.keys())
+                totals = list(monthly_totals.values())
+
+                plt.bar(months, totals, color="#4260f5")
+                plt.xlabel("Month", family="Arial")
+                plt.ylabel("Hours studied", family="Arial")
+                plt.title("Study Time Per Month", fontweight="bold", color="#4260f5")
                 plt.xticks(rotation=45)
                 plt.tight_layout()
-                plt.show()
+                return plt.show()
             else:
                 print("No valid study data to plot yet.")
+
         except FileNotFoundError:
             print("No study data file found yet.")
+        return 
+
     def check_daily_goal(self):
         try:
             goal = int(input("\nEnter your daily study goal in minutes: "))
@@ -261,7 +287,7 @@ def main():
         print(f"Logged in today: {tracker.today.strftime('%Y-%m-%d')}")
         print("1. Add Study Session (with timer)")
         print("2. View Today's Summary")
-        print("3. Check Daily Goal")
+        print("3. Set Daily Goal")
         print("4. Manually Add Study Session")
         print("5. Study Tips")
         print("6. view study log & Graph")
@@ -293,7 +319,7 @@ def main():
 
 
 if __name__ == "__main__":
-    subprocess.Popen(["say", "Welcome to study-tracker app ,I am alex  your assistant voice. Please press ok to proceed."])
+    subprocess.Popen(["say", "Welcome from your assistant voice. Glad You're back."])
     root = tk.Tk()
     root.withdraw()
     messagebox.showinfo("Welcome", "Welcome to Daily Study Tracker"
