@@ -1,14 +1,14 @@
 import random
 import time
-from datetime import datetime
+from datetime import datetime, date
 import tkinter as tk
 from tkinter import messagebox
-from tkinter import *
 import threading
 import subprocess
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+
 LOG_FILE = "study_log1.txt"
+DATA_FILE = "new data .txt"   # exact original filename
 
 
 def play_sound(sound="Glass"):
@@ -16,25 +16,33 @@ def play_sound(sound="Glass"):
     subprocess.Popen(["afplay", f"/System/Library/Sounds/{sound}.aiff"])
 
 
-def reminder(message, delay):       #reminder to take a break after 1 hour.
+def reminder(message, delay):
+    """Reminder to take a break after delay seconds."""
     def task():
-        seconds = delay
-        while seconds >= 0:
-            time.sleep(1)
-            seconds -= 1
+        time.sleep(delay)
         print(f"\nReminder: {message}")
         play_sound("Blow")
         subprocess.Popen(["say", "Take a break if you need 1 hour already"])
+    threading.Thread(target=task, daemon=True).start()
 
-    threading.Thread(target=task, daemon=True).start()  #remin
+
+def ensure_data_files():
+    """
+    Ensure the log files exist so read operations won't raise FileNotFoundError.
+    Opening in append mode creates the file if it doesn't exist, then closes it.
+    """
+    open(LOG_FILE, "a").close()
+    open(DATA_FILE, "a").close()
 
 
 class StudyTracker:
     def __init__(self):
         self.today = datetime.today()
         self.study_log = []
-        self.total_study_time = int(0)
+        self.total_study_time = 0
         self.daily_goals = []
+    def gettotalstudytime(self):
+        return self.total_study_time
 
     def motivational_quote(self):
         quotes = [
@@ -51,8 +59,8 @@ class StudyTracker:
     def start_timer(self, minutes):
         seconds = minutes * 60
         print(f"\n< Timer set for {minutes} minutes. Starting now... >")
-        subprocess.Popen(["Say","Good Luck timer is set for",{minutes},"minutes"])
-        play_sound("Tink")  # timer started
+        subprocess.Popen(["say", "Timer is set Good Luck."])
+        play_sound("Tink")
 
         while seconds >= 0:
             mins = (seconds // 60) % 60
@@ -63,15 +71,19 @@ class StudyTracker:
             seconds -= 1
 
         print("\n⏰ Time's up! Great job studying!")
-        play_sound("Hero")  # time's up!
+        play_sound("Hero")
         subprocess.Popen(["say", "Time is up! Great job studying!"])
 
     def save_to_file(self):
+        """
+        Append session lines to study_log1.txt and a daily total line to new data .txt.
+        Date format is YYYY-MM-DD to match view_summary and other readers.
+        """
         with open(LOG_FILE, "a") as file:
             for session in self.study_log:
                 file.write(f"{self.today.strftime('%Y-%m-%d')} | {session['topic']} | {session['time']}\n")
-        with open("new data .txt","a") as file:
-            file.write(f"{self.today.strftime('%y-%m-%d')} | {self.total_study_time}\n")
+        with open(DATA_FILE, "a") as file:
+            file.write(f"{self.today.strftime('%Y-%m-%d')} | {self.total_study_time}\n")
 
     def add_study_session(self):
         while True:
@@ -86,23 +98,27 @@ class StudyTracker:
             play_sound("Tink")
             topic_name = input(f"\nEnter the name of topic {count}: ")
             play_sound("Tink")
-            time_spent = int(input(f"Enter study time in minutes for {topic_name}: "))
+            while True:
+                try:
+                    time_spent = int(input(f"Enter study time in minutes for {topic_name}: "))
+                    break
+                except ValueError:
+                    print("Invalid input. Please enter minutes as a number.")
 
             self.start_timer(time_spent)
             try:
                 play_sound("Tink")
-                time_extra = int(input("How much extra time did you take? (0 if none):"))
+                time_extra = int(input("How much extra time did you take? (0 if none): "))
             except ValueError:
-                print("Sir I asked for the time you entered a wrong thing")
-                time_extra = input("re-enter:")
+                print("Invalid input, defaulting to 0.")
+                time_extra = 0
 
             total_time = time_spent + time_extra
             self.total_study_time += total_time
             self.study_log.append({"topic": topic_name, "time": total_time})
 
-
             print(f"✅ Logged: {topic_name} — {total_time} minutes")
-            play_sound("Glass")  # session logged
+            play_sound("Glass")
 
         self.save_to_file()
         print(f"\n📊 Total study time recorded today: {self.total_study_time} minutes.")
@@ -130,9 +146,8 @@ class StudyTracker:
             self.study_log.append({"topic": topic_name, "time": time_spent})
             self.save_to_file()
             print(f"✅ Logged: {topic_name} — {time_spent} minutes")
-            subprocess.Popen(["say","Successfully logged"])
+            subprocess.Popen(["say", "Successfully logged"])
             play_sound("Glass")
-
 
         print(f"\n📊 Total study time recorded so far: {self.total_study_time} minutes")
 
@@ -145,73 +160,69 @@ class StudyTracker:
                     if line:
                         print(line)
         except FileNotFoundError:
-            print("❌ No study log found yet.")
-        return
+            # Should not happen because ensure_data_files() runs at startup
+            print("❌ No study log found yet. Start a session to create the log file.")
 
     def view_summary(self):
-        from datetime import date
-
-        today = date.today().isoformat()  # e.g. '2026-06-12'
+        today = date.today().strftime('%Y-%m-%d')
         total_minutes = 0
         todays_entries = []
 
         try:
-            with open('new data .txt', 'r') as f:
+            with open(DATA_FILE, "r") as f:
                 for line in f:
                     line = line.strip()
-                    if not line or '|' not in line:
+                    if not line or "|" not in line:
                         continue
-                    entry_date, minutes = [p.strip() for p in line.split('|')]
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) != 2:
+                        continue
+                    entry_date, minutes = parts
                     if entry_date == today:
-                        total_minutes += int(minutes)
-                        todays_entries.append(f"{entry_date} | {minutes} min")
+                        try:
+                            total_minutes += int(minutes)
+                            todays_entries.append(f"{entry_date} | {minutes} min")
+                        except ValueError:
+                            # skip malformed minutes
+                            continue
         except FileNotFoundError:
+            # Should not happen because ensure_data_files() runs at startup
             print("No study data file found yet.")
             return
 
-        print('\n📊 Today\'s Study Summary 📊')
+        print("\n📊 Today's Study Summary 📊")
         print(f"[----- You studied for a total of {total_minutes} minutes today. -----]")
         for entry in todays_entries:
             print(entry)
 
         if total_minutes >= 100:
             print("Great consistency! Keep it up.")
-            subprocess.Popen(["say","Keep up the great work"])
+            subprocess.Popen(["say", "Keep up the great work"])
             self.motivational_quote()
         else:
             print("You're doing well—keep pushing yourself a little more!")
 
-    from datetime import datetime
-    import matplotlib.pyplot as plt
-
-    import matplotlib.pyplot as plt
-    from datetime import datetime
-
     def Study_graph(self):
-        monthly_totals = {}  # {"June": 12.5, "July": 8.0, ...} — values in hours
+        monthly_totals = {}
         try:
-            with open("new data .txt", "r") as file:  # removed extra space in filename
+            with open(DATA_FILE, "r") as file:
                 for line in file:
                     line = line.strip()
-                    if not line:
+                    if not line or "|" not in line:
                         continue
-
-                    parts = line.split(" | ")
-                    if len(parts) != 2:  # check first before parsing
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) != 2:
                         continue
-
                     try:
-                        hours = int(parts[1]) / 60  # minutes -> hours
+                        hours = int(parts[1]) / 60
                         date_obj = datetime.strptime(parts[0], "%Y-%m-%d")
                         month_name = date_obj.strftime("%B")
-
                         monthly_totals[month_name] = monthly_totals.get(month_name, 0) + hours
                     except ValueError:
                         continue
 
             if monthly_totals:
-                count = len(monthly_totals.keys())
-                average = sum(monthly_totals.values()) / count
+                average = sum(monthly_totals.values()) / len(monthly_totals)
                 print("Average study hours per month:", average)
                 print("Monthly totals:", monthly_totals)
 
@@ -224,13 +235,11 @@ class StudyTracker:
                 plt.title("Study Time Per Month", fontweight="bold", color="#4260f5")
                 plt.xticks(rotation=45)
                 plt.tight_layout()
-                return plt.show()
+                plt.show()
             else:
                 print("No valid study data to plot yet.")
-
         except FileNotFoundError:
             print("No study data file found yet.")
-        return 
 
     def check_daily_goal(self):
         try:
@@ -248,11 +257,13 @@ class StudyTracker:
                     line = line.strip()
                     if not line:
                         continue
-                    parts = line.split(" | ")
-                    if parts[0] == today:
-                        minutes = int(parts[2])
-
-                        total_from_file += minutes
+                    parts = [p.strip() for p in line.split("|")]
+                    if len(parts) >= 3 and parts[0] == today:
+                        try:
+                            minutes = int(parts[2])
+                            total_from_file += minutes
+                        except ValueError:
+                            continue
         except FileNotFoundError:
             print("❌ No study log found. Start a session first!")
             return
@@ -260,7 +271,7 @@ class StudyTracker:
         print(f"Your daily study time today: {total_from_file} minutes.")
 
         if total_from_file >= goal:
-            print("✅ Goal achieved! Amazing work!")
+            print("✅ Goal achieved! Amazing work")
             play_sound("Hero")
             self.motivational_quote()
         else:
@@ -281,6 +292,9 @@ class StudyTracker:
 
 
 def main():
+    # Ensure files exist before any read attempts
+    ensure_data_files()
+
     tracker = StudyTracker()
     while True:
         print("\n📚 🧑‍🎓 Daily Study Tracker 📚💻")
@@ -311,7 +325,6 @@ def main():
         elif choice == "7":
             subprocess.Popen(["say", "That's it for today Sir ,   see you soon"])
             print("This is it for now, see you next time!")
-            print(f"Your study time today: {tracker.total_study_time} minutes")
             play_sound("Sosumi")
             break
         else:
